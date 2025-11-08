@@ -24,6 +24,7 @@ pip install --index-url https://download.pytorch.org/whl/cpu torch==2.3.1+cpu
 
 # Install remaining dependencies
 pip install -r requirements.txt
+pip install huggingface-hub==0.25.2
 ```
 
 ### 2. Verify Configuration
@@ -40,7 +41,7 @@ cat .env
 
 Should show:
 ```bash
-OPENROUTER_API_KEY=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
+OPENROUTER_API_KEY=sk-or-v1-01ff92a4ec0c5e35c--------------------------------------9acac1
 OPENROUTER_MODEL=qwen/qwen-2.5-72b-instruct
 USE_LLM_ETYMOLOGY=true
 ```
