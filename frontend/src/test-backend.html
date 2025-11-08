@@ -94,7 +94,7 @@
     
     <div class="config">
         <strong>Backend URL:</strong>
-        <input type="text" id="apiUrl" value="http://localhost:8000" />
+        <input type="text" id="apiUrl" value="VITE_API_URL" />
         <button onclick="updateUrl()">Update</button>
     </div>
 
@@ -136,7 +136,7 @@
     </div>
 
     <script>
-        let apiUrl = 'http://localhost:8000';
+        let apiUrl = 'VITE_API_URL';
 
         function updateUrl() {
             apiUrl = document.getElementById('apiUrl').value;

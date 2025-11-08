@@ -2,7 +2,7 @@
 
 const API_BASE_URL = typeof import.meta !== 'undefined' && import.meta.env?.VITE_API_URL 
   ? import.meta.env.VITE_API_URL 
-  : 'http://localhost:8000';
+  : 'VITE_API_URL';
 
 export interface EmbeddingResponse {
   embedding: number[];
