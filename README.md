@@ -1,134 +1,345 @@
-# Echoes - Backend (v1.0.0)
+# Echoes Backend - Setup Guide
 
-Minimal backend for the Echoes hackathon project (18 hr MVP).
-Provides endpoints to serve precomputed sentence embeddings per concept-era and simple similarity/timeline results.
+Complete guide for setting up the Echoes backend with LLM-powered etymology.
 
-## Repo structure
+## Project Structure
+
+```
 echoes-backend/
-├─ data/
-│ ├─ 1900s_freedom.csv
-│ └─ 2020s_freedom.csv
-├─ embeddings/
-│ └─ freedom/
-│ ├─ 1900s.json
-│ └─ 2020s.json
-├─ assets/
-│ └─ symbols/
-├─ api/
-│ ├─ main.py
-│ ├─ utils.py
-│ └─ models.py
-├─ scripts/
-│ └─ build_embeddings.py
-├─ demo_query.py
-├─ requirements.txt
-└─ README.md
+├── .env                      # Your environment variables (create this!)
+├── .env.example              # Template for .env
+├── .gitignore               # Git ignore file
+├── requirements.txt          # Python dependencies
+├── README.md                # Project documentation
+├── SETUP.md                 # This file
+│
+├── api/
+│   ├── __init__.py          # Package initializer
+│   ├── config.py            # Configuration management
+│   ├── main.py              # FastAPI application
+│   ├── models.py            # Pydantic models
+│   ├── utils.py             # Utility functions
+│   └── etymology_service.py # LLM/API etymology service
+│
+├── scripts/
+│   └── build_embeddings.py  # Embedding generation script
+│
+├── demo_query.py            # Original demo
+├── demo_llm_query.py        # LLM demo script
+│
+├── data/                    # CSV fallback files
+├── embeddings/              # Generated embeddings
+├── assets/                  # Static assets
+└── logs/                    # Log files (auto-created)
+```
 
+## Installation Steps
 
-## Quickstart (local)
-1. Create & activate a virtualenv:
-   ```bash
-   python -m venv .venv
-   .venv\Scripts\Activate.ps1
+### 1. Clone and Setup Virtual Environment
 
-   pip install --upgrade pip setuptools wheel
+```bash
+# Create virtual environment
+python -m venv .venv
 
-   pip install -r requirements.txt
+# Activate (Windows PowerShell)
+.venv\Scripts\Activate.ps1
 
-   pip install -r requirements.txt --extra-index-url https://download.pytorch.org/whl/cpu
+# Activate (Windows CMD)
+.venv\Scripts\activate.bat
 
-## try this only if the requirement file is giving error
-1. Upgrade pip / setuptools / wheel / build (this is the most important step):
+# Activate (Mac/Linux)
+source .venv/bin/activate
 
+# Upgrade pip
+python -m pip install --upgrade pip setuptools wheel
+```
 
+### 2. Install Dependencies
 
-# inside .venv
-python -m pip install --upgrade pip setuptools wheel build
+```bash
+# Install PyTorch CPU version first
+pip install --index-url https://download.pytorch.org/whl/cpu torch==2.3.1+cpu
 
-2. (Optional but helpful) Clear pip cache so pip re-downloads wheels:
+# Install all other requirements
+pip install -r requirements.txt
+```
 
+### 3. Configure Environment Variables
 
+```bash
+# Copy the example file
+cp .env.example .env
 
-python -m pip cache purge
+# Edit .env with your preferred editor
+```
 
-3. Install NumPy first using binary-only preference so pip will not attempt to build from source:
+**Choose ONE LLM provider and add your API key:**
 
+#### Option A: OpenAI (GPT)
+```bash
+OPENAI_API_KEY=sk-your-key-here
+OPENAI_MODEL=gpt-4o-mini
+USE_LLM_ETYMOLOGY=true
+```
 
+#### Option B: DeepSeek (Cost-effective)
+```bash
+DEEPSEEK_API_KEY=sk-your-key-here
+DEEPSEEK_MODEL=deepseek-chat
+USE_LLM_ETYMOLOGY=true
+```
 
-# prefer binary, but allow fallback; if it still tries to build, switch to only-binary
-pip install numpy==1.25.2 --prefer-binary
+#### Option C: Google Gemini (Free tier available)
+```bash
+GEMINI_API_KEY=your-key-here
+GEMINI_MODEL=gemini-1.5-flash
+USE_LLM_ETYMOLOGY=true
+```
 
-If the above still tries to build (error persists), force only-binary (this will fail if no wheel exists for your Python):
+#### Option D: Anthropic Claude
+```bash
+ANTHROPIC_API_KEY=sk-ant-your-key-here
+ANTHROPIC_MODEL=claude-3-5-sonnet-20241022
+USE_LLM_ETYMOLOGY=true
+```
 
-pip install numpy==1.25.2 --only-binary=:all:
+### 4. Create Required Files
 
-If --only-binary fails (no wheel for your Python), try a different NumPy wheel that is more likely to exist on PyPI for modern Pythons:
+Create `api/__init__.py`:
+```python
+from .config import settings
+__version__ = "1.0.0"
+```
 
-pip install numpy==1.26.4 --prefer-binary
+Create `.gitignore`:
+```
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+.venv/
+venv/
+ENV/
 
-4. Install PyTorch (CPU wheel) using the PyTorch index:
+# Environment
+.env
+.env.local
 
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
 
+# Logs
+logs/
+*.log
 
-# Install a CPU wheel that exists on the PyTorch index. Pick the one that was shown as available earlier:
-pip install --trusted-host download.pytorch.org --index-url https://download.pytorch.org/whl/cpu torch==2.3.1+cpu
+# Data (optional - keep embeddings out of git if large)
+embeddings/
+*.json
 
-If you want a different available torch (the index you showed had many +cpu versions), pick one from that list and replace 2.3.1+cpu.
+# OS
+.DS_Store
+Thumbs.db
+```
 
-5. Install everything else from the requirements file (final requirements.txt given below):
+## Usage
 
+### Start the Server
 
-
-pip install -r requirements.txt --extra-index-url https://download.pytorch.org/whl/cpu
-
-6. Quick verification:
-
-
-
-python -c "import numpy, torch, sklearn, fastapi, sentence_transformers; print('numpy', numpy.__version__, 'torch', getattr(torch,'__version__','n/a'), 'sklearn', __import__('sklearn').__version__)"
-
-
-##
-
-
-
-2. Generate embeddings for demo concept freedom:
-
-python scripts/build_embeddings.py --concept freedom --eras 1900s,2020s
-
-> This will create embeddings/freedom/1900s.json and embeddings/freedom/2020s.json.
-
-
-
-
-3. Start the server:
-
+```bash
 uvicorn api.main:app --reload --port 8000
+```
 
+The server will be available at `http://localhost:8000`
 
-4. Run the demo query:
+### API Documentation
 
-python demo_query.py
+Visit `http://localhost:8000/docs` for interactive Swagger UI documentation.
 
+### Run Demo Script
 
+```bash
+# Test LLM-powered etymology generation
+python demo_llm_query.py
+```
 
-Endpoints
+## API Endpoints
 
-GET /health — health check
+### 1. Generate Evolution Data (NEW!)
 
-POST /embed — body param text (string): returns embedding
+```bash
+POST /generate-evolution
+{
+  "word": "science",
+  "eras": ["1900s", "1950s", "2020s"],
+  "num_examples": 5
+}
+```
 
-GET /timeline?concept=...&top_n=... — returns era-by-era top similar items and centroid shift
+This uses your configured LLM to generate contextual examples showing how the word evolved.
 
-GET /era?concept=...&era=1900s&top_n=... — returns top items for era
+### 2. Build Complete Embeddings (NEW!)
 
-GET /symbol-pairs?symbol=... — returns static asset pairs under assets/symbols/<symbol>/
+```bash
+POST /build-embeddings
+{
+  "word": "freedom",
+  "eras": ["1900s", "2020s"],
+  "num_examples": 5
+}
+```
 
+This generates evolution data AND creates embedding files in one step.
 
-Notes & tips
+### 3. Get Timeline
 
-For speed during demo, precompute and commit the embeddings/ JSON files.
+```bash
+GET /timeline?concept=freedom&top_n=6
+```
 
-If the model download is slow, run build_embeddings.py on a machine with an internet connection first.
+### 4. Get Era-Specific Data
 
-Extend utils to compute TF-IDF labels, sentiment, or to add caching (Redis / disk cache).
+```bash
+GET /era?concept=freedom&era=1900s&top_n=10
+```
+
+### 5. Generate Embedding
+
+```bash
+POST /embed
+{
+  "text": "Your text here"
+}
+```
+
+## Example Workflow
+
+### Using LLM to Generate New Concept Data
+
+1. **Start the server:**
+   ```bash
+   uvicorn api.main:app --reload --port 8000
+   ```
+
+2. **Generate evolution data for "science":**
+   ```bash
+   curl -X POST "http://localhost:8000/build-embeddings" \
+     -H "Content-Type: application/json" \
+     -d '{
+       "word": "science",
+       "eras": ["1900s", "1950s", "2020s"],
+       "num_examples": 5
+     }'
+   ```
+
+3. **View the timeline:**
+   ```bash
+   curl "http://localhost:8000/timeline?concept=science&top_n=5"
+   ```
+
+## Troubleshooting
+
+### No LLM Provider Configured
+
+**Error:** `"llm_provider": null` in health check
+
+**Solution:** Add an API key to your `.env` file:
+```bash
+OPENAI_API_KEY=sk-your-key-here
+```
+
+### Import Errors
+
+**Error:** `ModuleNotFoundError: No module named 'openai'`
+
+**Solution:** Install the LLM provider packages:
+```bash
+# For OpenAI/DeepSeek
+pip install openai
+
+# For Gemini
+pip install google-generativeai
+
+# For Claude
+pip install anthropic
+```
+
+### PyTorch Installation Issues
+
+See the main README.md for detailed PyTorch troubleshooting.
+
+### Concept Not Found
+
+**Error:** `404: Concept 'xyz' not found`
+
+**Solution:** You need to generate embeddings first:
+```bash
+curl -X POST "http://localhost:8000/build-embeddings" \
+  -H "Content-Type: application/json" \
+  -d '{"word": "xyz", "eras": ["1900s", "2020s"], "num_examples": 5}'
+```
+
+## Cost Considerations
+
+### LLM API Costs (approximate)
+
+- **DeepSeek:** ~$0.001 per concept (CHEAPEST)
+- **OpenAI GPT-4o-mini:** ~$0.01 per concept
+- **Gemini Flash:** Free tier available, then ~$0.002 per concept
+- **Claude Sonnet:** ~$0.03 per concept
+
+### Recommendations
+
+- **For development/testing:** Use **DeepSeek** or **Gemini** (free tier)
+- **For production:** Consider your quality vs. cost needs
+- **For offline:** Use CSV fallback files
+
+## Production Deployment
+
+1. **Set proper CORS origins:**
+   ```bash
+   ALLOWED_ORIGINS=https://yourdomain.com
+   ```
+
+2. **Disable reload:**
+   ```bash
+   uvicorn api.main:app --host 0.0.0.0 --port 8000 --workers 4
+   ```
+
+3. **Use a reverse proxy (Nginx/Caddy)**
+
+4. **Enable rate limiting:**
+   ```bash
+   RATE_LIMIT_ENABLED=true
+   RATE_LIMIT_PER_MINUTE=60
+   ```
+
+5. **Set up logging:**
+   ```bash
+   LOG_LEVEL=WARNING
+   LOG_FILE=/var/log/echoes/app.log
+   ```
+
+## Next Steps
+
+1. Explore the Swagger docs at `http://localhost:8000/docs`
+2. Try generating evolution data for different words
+3. Build a frontend to visualize the timelines
+4. Add more eras for richer historical analysis
+5. Customize the LLM prompts in `etymology_service.py`
+
+## Support
+
+For issues or questions:
+- Check the logs in `logs/echoes.log`
+- Review the FastAPI docs at `/docs`
+- Ensure your API keys are valid
+- Check that required directories exist
+
+## License
+
+[Your License Here]
