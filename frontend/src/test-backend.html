@@ -1,0 +1,247 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Echoes Backend Connection Test</title>
+    <style>
+        body {
+            font-family: 'Courier New', monospace;
+            background: #0f172a;
+            color: #cbd5e1;
+            padding: 40px;
+            max-width: 800px;
+            margin: 0 auto;
+        }
+        h1 {
+            color: #06b6d4;
+            margin-bottom: 30px;
+        }
+        .test-section {
+            background: #1e293b;
+            border: 1px solid #334155;
+            border-radius: 8px;
+            padding: 20px;
+            margin-bottom: 20px;
+        }
+        .status {
+            padding: 8px 12px;
+            border-radius: 4px;
+            display: inline-block;
+            font-weight: bold;
+            margin-bottom: 10px;
+        }
+        .status.success {
+            background: #064e3b;
+            color: #10b981;
+        }
+        .status.error {
+            background: #7f1d1d;
+            color: #ef4444;
+        }
+        .status.pending {
+            background: #78350f;
+            color: #f59e0b;
+        }
+        button {
+            background: linear-gradient(to right, #06b6d4, #3b82f6);
+            color: white;
+            border: none;
+            padding: 12px 24px;
+            border-radius: 6px;
+            cursor: pointer;
+            font-family: inherit;
+            font-size: 14px;
+            margin-top: 10px;
+        }
+        button:hover {
+            opacity: 0.9;
+        }
+        pre {
+            background: #0f172a;
+            border: 1px solid #334155;
+            border-radius: 4px;
+            padding: 12px;
+            overflow-x: auto;
+            font-size: 12px;
+            color: #94a3b8;
+        }
+        .endpoint {
+            color: #8b5cf6;
+            font-weight: bold;
+        }
+        input {
+            background: #1e293b;
+            border: 1px solid #334155;
+            color: #cbd5e1;
+            padding: 8px 12px;
+            border-radius: 4px;
+            font-family: inherit;
+            width: 300px;
+            margin-right: 10px;
+        }
+        .config {
+            background: #422006;
+            border: 1px solid #78350f;
+            border-radius: 6px;
+            padding: 15px;
+            margin-bottom: 20px;
+        }
+    </style>
+</head>
+<body>
+    <h1>🔌 Echoes Backend Connection Test</h1>
+    
+    <div class="config">
+        <strong>Backend URL:</strong>
+        <input type="text" id="apiUrl" value="http://localhost:8000" />
+        <button onclick="updateUrl()">Update</button>
+    </div>
+
+    <div class="test-section">
+        <h3>1. Health Check</h3>
+        <div class="status pending" id="health-status">⏳ Not tested</div>
+        <p>Tests: <span class="endpoint">GET /health</span></p>
+        <button onclick="testHealth()">Test Health</button>
+        <pre id="health-result"></pre>
+    </div>
+
+    <div class="test-section">
+        <h3>2. Timeline Endpoint</h3>
+        <div class="status pending" id="timeline-status">⏳ Not tested</div>
+        <p>Tests: <span class="endpoint">GET /timeline?concept=freedom&top_n=5</span></p>
+        <button onclick="testTimeline()">Test Timeline</button>
+        <pre id="timeline-result"></pre>
+    </div>
+
+    <div class="test-section">
+        <h3>3. Era Endpoint</h3>
+        <div class="status pending" id="era-status">⏳ Not tested</div>
+        <p>Tests: <span class="endpoint">GET /era?concept=freedom&era=1900s&top_n=5</span></p>
+        <button onclick="testEra()">Test Era</button>
+        <pre id="era-result"></pre>
+    </div>
+
+    <div class="test-section">
+        <h3>4. Symbol Pairs</h3>
+        <div class="status pending" id="symbol-status">⏳ Not tested</div>
+        <p>Tests: <span class="endpoint">GET /symbol-pairs?symbol=freedom</span></p>
+        <button onclick="testSymbol()">Test Symbol Pairs</button>
+        <pre id="symbol-result"></pre>
+    </div>
+
+    <div class="test-section">
+        <h3>🚀 Test All Endpoints</h3>
+        <button onclick="testAll()" style="background: linear-gradient(to right, #10b981, #06b6d4);">Run All Tests</button>
+    </div>
+
+    <script>
+        let apiUrl = 'http://localhost:8000';
+
+        function updateUrl() {
+            apiUrl = document.getElementById('apiUrl').value;
+            console.log('Updated API URL to:', apiUrl);
+        }
+
+        function setStatus(id, success, message) {
+            const el = document.getElementById(id);
+            el.className = success ? 'status success' : 'status error';
+            el.textContent = success ? '✅ ' + message : '❌ ' + message;
+        }
+
+        async function testHealth() {
+            const resultEl = document.getElementById('health-result');
+            resultEl.textContent = 'Testing...';
+            
+            try {
+                const response = await fetch(`${apiUrl}/health`);
+                const data = await response.json();
+                
+                if (response.ok && data.status === 'ok') {
+                    setStatus('health-status', true, 'Backend is healthy!');
+                    resultEl.textContent = JSON.stringify(data, null, 2);
+                } else {
+                    setStatus('health-status', false, 'Unexpected response');
+                    resultEl.textContent = JSON.stringify(data, null, 2);
+                }
+            } catch (error) {
+                setStatus('health-status', false, 'Connection failed');
+                resultEl.textContent = `Error: ${error.message}\n\nMake sure backend is running:\nuvicorn api.main:app --reload --port 8000`;
+            }
+        }
+
+        async function testTimeline() {
+            const resultEl = document.getElementById('timeline-result');
+            resultEl.textContent = 'Testing...';
+            
+            try {
+                const response = await fetch(`${apiUrl}/timeline?concept=freedom&top_n=5`);
+                const data = await response.json();
+                
+                if (response.ok && data.concept) {
+                    setStatus('timeline-status', true, 'Timeline endpoint working!');
+                    resultEl.textContent = JSON.stringify(data, null, 2).substring(0, 500) + '\n... (truncated)';
+                } else {
+                    setStatus('timeline-status', false, 'Invalid response');
+                    resultEl.textContent = JSON.stringify(data, null, 2);
+                }
+            } catch (error) {
+                setStatus('timeline-status', false, 'Connection failed');
+                resultEl.textContent = `Error: ${error.message}`;
+            }
+        }
+
+        async function testEra() {
+            const resultEl = document.getElementById('era-result');
+            resultEl.textContent = 'Testing...';
+            
+            try {
+                const response = await fetch(`${apiUrl}/era?concept=freedom&era=1900s&top_n=5`);
+                const data = await response.json();
+                
+                if (response.ok && data.era) {
+                    setStatus('era-status', true, 'Era endpoint working!');
+                    resultEl.textContent = JSON.stringify(data, null, 2).substring(0, 500) + '\n... (truncated)';
+                } else {
+                    setStatus('era-status', false, 'Invalid response');
+                    resultEl.textContent = JSON.stringify(data, null, 2);
+                }
+            } catch (error) {
+                setStatus('era-status', false, 'Connection failed');
+                resultEl.textContent = `Error: ${error.message}`;
+            }
+        }
+
+        async function testSymbol() {
+            const resultEl = document.getElementById('symbol-result');
+            resultEl.textContent = 'Testing...';
+            
+            try {
+                const response = await fetch(`${apiUrl}/symbol-pairs?symbol=freedom`);
+                const data = await response.json();
+                
+                if (response.ok && data.symbol) {
+                    setStatus('symbol-status', true, 'Symbol pairs endpoint working!');
+                    resultEl.textContent = JSON.stringify(data, null, 2);
+                } else {
+                    setStatus('symbol-status', false, 'Invalid response');
+                    resultEl.textContent = JSON.stringify(data, null, 2);
+                }
+            } catch (error) {
+                setStatus('symbol-status', false, 'Connection failed (optional)');
+                resultEl.textContent = `Error: ${error.message}\n\nNote: Symbol pairs are optional.`;
+            }
+        }
+
+        async function testAll() {
+            await testHealth();
+            await new Promise(resolve => setTimeout(resolve, 500));
+            await testTimeline();
+            await new Promise(resolve => setTimeout(resolve, 500));
+            await testEra();
+            await new Promise(resolve => setTimeout(resolve, 500));
+            await testSymbol();
+        }
+    </script>
+</body>
+</html>

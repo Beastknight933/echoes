@@ -1,0 +1,36 @@
+2025-11-08 23:25:28,648 - api.main - INFO - ============================================================
+2025-11-08 23:25:28,648 - api.main - INFO - Starting Echoes Backend v1.1.0
+2025-11-08 23:25:28,648 - api.main - INFO - ============================================================
+2025-11-08 23:25:28,648 - api.main - INFO - OpenRouter Model: qwen/qwen-2.5-72b-instruct
+2025-11-08 23:25:28,648 - api.main - INFO - LLM Etymology: True
+2025-11-08 23:25:28,648 - api.main - INFO - Response Caching: True
+2025-11-08 23:25:28,648 - api.main - INFO - CORS Origins: ['*']
+2025-11-08 23:25:28,648 - api.main - INFO - ============================================================
+2025-11-08 23:26:43,546 - api.main - INFO - Generating evolution for 'privacy' across 3 eras
+2025-11-08 23:26:43,548 - api.etymology_service - INFO - Generating evolution for 'privacy' across 3 eras (5 examples each)
+2025-11-08 23:26:44,731 - httpx - INFO - HTTP Request: POST https://openrouter.ai/api/v1/chat/completions "HTTP/1.1 401 Unauthorized"
+2025-11-08 23:26:44,734 - api.etymology_service - ERROR - OpenRouter API error: Error code: 401 - {'error': {'message': 'User not found.', 'code': 401}}
+2025-11-08 23:26:46,826 - httpx - INFO - HTTP Request: POST https://openrouter.ai/api/v1/chat/completions "HTTP/1.1 401 Unauthorized"
+2025-11-08 23:26:46,827 - api.etymology_service - ERROR - OpenRouter API error: Error code: 401 - {'error': {'message': 'User not found.', 'code': 401}}
+2025-11-08 23:26:49,119 - httpx - INFO - HTTP Request: POST https://openrouter.ai/api/v1/chat/completions "HTTP/1.1 401 Unauthorized"
+2025-11-08 23:26:49,119 - api.etymology_service - ERROR - OpenRouter API error: Error code: 401 - {'error': {'message': 'User not found.', 'code': 401}}
+2025-11-08 23:26:49,120 - api.etymology_service - ERROR - Failed to generate evolution for 'privacy': API call failed: Error code: 401 - {'error': {'message': 'User not found.', 'code': 401}}
+2025-11-08 23:26:49,120 - api.main - ERROR - OpenRouter API error for 'privacy': API call failed: Error code: 401 - {'error': {'message': 'User not found.', 'code': 401}}
+2025-11-08 23:31:44,350 - api.main - INFO - ============================================================
+2025-11-08 23:31:44,350 - api.main - INFO - Starting Echoes Backend v1.1.0
+2025-11-08 23:31:44,350 - api.main - INFO - ============================================================
+2025-11-08 23:31:44,350 - api.main - INFO - OpenRouter Model: qwen/qwen-2.5-72b-instruct
+2025-11-08 23:31:44,350 - api.main - INFO - LLM Etymology: True
+2025-11-08 23:31:44,350 - api.main - INFO - Response Caching: True
+2025-11-08 23:31:44,350 - api.main - INFO - CORS Origins: ['*']
+2025-11-08 23:31:44,350 - api.main - INFO - ============================================================
+2025-11-08 23:32:11,265 - api.main - INFO - Generating evolution for 'privacy' across 3 eras
+2025-11-08 23:32:11,265 - api.etymology_service - INFO - Generating evolution for 'privacy' across 3 eras (5 examples each)
+2025-11-08 23:32:12,385 - httpx - INFO - HTTP Request: POST https://openrouter.ai/api/v1/chat/completions "HTTP/1.1 401 Unauthorized"
+2025-11-08 23:32:12,389 - api.etymology_service - ERROR - OpenRouter API error: Error code: 401 - {'error': {'message': 'User not found.', 'code': 401}}
+2025-11-08 23:32:14,470 - httpx - INFO - HTTP Request: POST https://openrouter.ai/api/v1/chat/completions "HTTP/1.1 401 Unauthorized"
+2025-11-08 23:32:14,470 - api.etymology_service - ERROR - OpenRouter API error: Error code: 401 - {'error': {'message': 'User not found.', 'code': 401}}
+2025-11-08 23:32:16,570 - httpx - INFO - HTTP Request: POST https://openrouter.ai/api/v1/chat/completions "HTTP/1.1 401 Unauthorized"
+2025-11-08 23:32:16,570 - api.etymology_service - ERROR - OpenRouter API error: Error code: 401 - {'error': {'message': 'User not found.', 'code': 401}}
+2025-11-08 23:32:16,570 - api.etymology_service - ERROR - Failed to generate evolution for 'privacy': API call failed: Error code: 401 - {'error': {'message': 'User not found.', 'code': 401}}
+2025-11-08 23:32:16,570 - api.main - ERROR - OpenRouter API error for 'privacy': API call failed: Error code: 401 - {'error': {'message': 'User not found.', 'code': 401}}
