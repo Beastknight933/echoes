@@ -109,43 +109,6 @@ curl "http://localhost:8000/timeline?concept=freedom&top_n=5"
 
 ---
 
-## 🎯 What Changed from Original
-
-### ✅ Optimizations
-
-1. **Single LLM Provider** - Only OpenRouter (removed 4+ unused providers)
-2. **Smaller Dependencies** - 23 lines vs 35 (-34%)
-3. **Added Retry Logic** - 3 attempts with exponential backoff
-4. **Added Caching** - LRU cache saves API calls
-5. **Better Error Handling** - Clear error messages
-6. **Removed Unused Code** - Wiktionary, CSV fallback, symbol endpoints
-
-### 📊 Files Changed
-
-| File | Status | Changes |
-|------|--------|---------|
-| `requirements.txt` | REPLACED | Removed unused packages |
-| `api/config.py` | REPLACED | OpenRouter-only config |
-| `api/etymology_service.py` | REPLACED | Complete rewrite |
-| `api/main.py` | REPLACED | Better error handling |
-| `.env` | REPLACED | Your key already set |
-| `.env.example` | REPLACED | Cleaner template |
-| `demo_openrouter.py` | NEW | Better demo script |
-| `QUICKSTART.md` | NEW | This file |
-
-### 📁 Files Unchanged
-
-- `api/__init__.py` ✅
-- `api/models.py` ✅
-- `api/utils.py` ✅
-- `scripts/build_embeddings.py` ✅
-- `demo_query.py` ✅
-- `README.md` ✅
-- `.gitignore` ✅
-- `.gitattributes` ✅
-
----
-
 ## 🔧 Troubleshooting
 
 ### "No module named 'tenacity'"
