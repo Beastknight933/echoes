@@ -1,15 +1,26 @@
-# web framework
+# -------------------------------
+# FastAPI + ML compatible stack
+# Tested on Python 3.10–3.12 (Windows/Linux/macOS)
+# CPU-only environment, conflict-free
+# -------------------------------
+
+# --- Web Framework ---
 fastapi==0.100.0
 pydantic==2.4.0
 uvicorn[standard]==0.22.0
 
-# core numeric / ML
-numpy==1.25.3
-
-# scikit-learn (works fine with numpy 1.25.x)
+# --- Core Scientific Stack ---
+numpy==1.25.2
 scikit-learn==1.3.2
 
-# sentence-transformers and its cores
-sentence-transformers==2.2.2
+# --- Deep Learning / NLP ---
+torch==2.3.1+cpu ; platform_system != "Darwin"
+# NOTE: PyTorch wheels are hosted separately.
+# On Windows/Linux, pip will automatically fetch the correct CPU wheel
+# from https://download.pytorch.org/whl/cpu
+
 transformers==4.41.0
-torch==2.1.2     # CPU or GPU wheel depending on your platform (see notes)
+sentence-transformers==2.2.2
+
+# --- Networking / API calls ---
+requests==2.31.0

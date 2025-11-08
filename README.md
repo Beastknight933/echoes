@@ -30,7 +30,13 @@ echoes-backend/
    ```bash
    python -m venv .venv
    .venv\Scripts\Activate.ps1
+
+   pip install --upgrade pip setuptools wheel
+
    pip install -r requirements.txt
+
+   pip install -r requirements.txt --extra-index-url https://download.pytorch.org/whl/cpu
+
 
 
 2. Generate embeddings for demo concept freedom:
