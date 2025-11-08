@@ -1,249 +1,251 @@
 """
-Etymology service that fetches word evolution data from:
-1. External APIs (Wiktionary)
-2. LLM providers (OpenAI, DeepSeek, Gemini, Claude)
-3. Fallback to static CSV files
+Streamlined etymology service using OpenRouter API.
+Includes retry logic, caching, and proper error handling.
 """
 import logging
-import requests
 import json
-from typing import List, Dict, Any, Optional
-from pathlib import Path
+from typing import List, Dict, Any
+from functools import lru_cache
+from openai import OpenAI
+from tenacity import (
+    retry,
+    stop_after_attempt,
+    wait_exponential,
+    retry_if_exception_type
+)
 
 from api.config import settings
 
 logger = logging.getLogger(__name__)
 
 
+class OpenRouterError(Exception):
+    """Custom exception for OpenRouter API errors."""
+    pass
+
+
 class EtymologyService:
-    """Service for fetching word etymology and evolution data."""
+    """Service for generating word evolution data using OpenRouter."""
     
     def __init__(self):
-        self.llm_client = None
-        self._initialize_llm_client()
+        """Initialize OpenRouter client."""
+        self.client = OpenAI(
+            api_key=settings.openrouter_api_key,
+            base_url="https://openrouter.ai/api/v1"
+        )
+        self.model = settings.openrouter_model
+        
+        # Headers for OpenRouter
+        self.extra_headers = {
+            "HTTP-Referer": settings.openrouter_site_url,
+            "X-Title": settings.openrouter_app_name,
+        }
+        
+        logger.info(f"Initialized OpenRouter with model: {self.model}")
     
-    def _initialize_llm_client(self):
-        """Initialize the appropriate LLM client based on available API keys."""
-        provider = settings.active_llm_provider
-        
-        if not provider:
-            logger.warning("No LLM API key found. LLM features will be disabled.")
-            return
-        
-        try:
-            if provider == "openai":
-                from openai import OpenAI
-                self.llm_client = OpenAI(api_key=settings.openai_api_key)
-                self.llm_model = settings.openai_model
-                logger.info(f"Initialized OpenAI client with model {self.llm_model}")
-            
-            elif provider == "deepseek":
-                from openai import OpenAI  # DeepSeek uses OpenAI-compatible API
-                self.llm_client = OpenAI(
-                    api_key=settings.deepseek_api_key,
-                    base_url="https://api.deepseek.com"
-                )
-                self.llm_model = settings.deepseek_model
-                logger.info(f"Initialized DeepSeek client with model {self.llm_model}")
-            
-            elif provider == "gemini":
-                import google.generativeai as genai
-                genai.configure(api_key=settings.gemini_api_key)
-                self.llm_client = genai.GenerativeModel(settings.gemini_model)
-                self.llm_model = settings.gemini_model
-                logger.info(f"Initialized Gemini client with model {self.llm_model}")
-            
-            elif provider == "anthropic":
-                from anthropic import Anthropic
-                self.llm_client = Anthropic(api_key=settings.anthropic_api_key)
-                self.llm_model = settings.anthropic_model
-                logger.info(f"Initialized Anthropic client with model {self.llm_model}")
-        
-        except Exception as e:
-            logger.error(f"Failed to initialize {provider} client: {e}")
-            self.llm_client = None
-    
-    async def fetch_wiktionary_data(self, word: str) -> Optional[Dict[str, Any]]:
-        """Fetch etymology data from Wiktionary API."""
-        if not settings.use_external_apis:
-            return None
-        
-        try:
-            # Wiktionary REST API endpoint
-            url = f"{settings.wiktionary_api_base}/page/definition/{word}"
-            response = requests.get(url, timeout=10)
-            
-            if response.status_code == 200:
-                data = response.json()
-                logger.info(f"Successfully fetched Wiktionary data for '{word}'")
-                return data
-            else:
-                logger.warning(f"Wiktionary API returned status {response.status_code} for '{word}'")
-                return None
-        
-        except Exception as e:
-            logger.error(f"Error fetching Wiktionary data for '{word}': {e}")
-            return None
-    
-    def generate_era_contexts_with_llm(
-        self, 
-        word: str, 
-        eras: List[str],
-        num_examples: int = 5
-    ) -> Dict[str, List[str]]:
-        """
-        Use LLM to generate contextual usage examples for a word across different eras.
-        
-        Args:
-            word: The word to analyze
-            eras: List of time periods (e.g., ["1900s", "1950s", "2020s"])
-            num_examples: Number of examples per era
-        
-        Returns:
-            Dictionary mapping era to list of contextual examples
-        """
-        if not settings.use_llm_etymology or not self.llm_client:
-            logger.warning("LLM etymology disabled or no client available")
-            return {}
-        
-        prompt = f"""Analyze how the word "{word}" was used and understood across different time periods.
+    def _build_prompt(self, word: str, eras: List[str], num_examples: int) -> str:
+        """Build the LLM prompt for word evolution analysis."""
+        return f"""Analyze how the word "{word}" evolved across different time periods.
 
-For each era listed below, provide {num_examples} distinct contextual examples or definitions that capture how people in that era would have understood and used this word. Focus on the semantic nuances, connotations, and cultural context of each period.
+For each era below, provide {num_examples} contextual examples that show how people understood and used this word during that period. Focus on:
+- Semantic changes and shifts in meaning
+- Cultural context and connotations
+- Historical usage patterns
+- Notable differences from other eras
 
 Eras: {", ".join(eras)}
 
-Format your response as JSON:
+Requirements:
+- Each example should be a complete phrase or short sentence (10-30 words)
+- Show authentic period-appropriate usage
+- Capture the essence of how meaning changed
+- Be historically accurate and specific
+
+Format as valid JSON only (no markdown, no preamble):
 {{
   "1900s": [
-    "example or definition 1",
-    "example or definition 2",
+    "example 1 showing meaning/context",
+    "example 2 showing meaning/context",
     ...
   ],
   "2020s": [
-    "example or definition 1",
+    "example 1 showing meaning/context",
     ...
   ]
-}}
-
-Important:
-- Each entry should be a complete phrase or short sentence showing meaning/usage
-- Capture the semantic shift and cultural context
-- Be historically accurate
-- Focus on how the meaning or connotation changed
-
-Respond ONLY with valid JSON, no preamble or markdown.
-"""
+}}"""
+    
+    @retry(
+        stop=stop_after_attempt(3),
+        wait=wait_exponential(multiplier=1, min=2, max=10),
+        retry=retry_if_exception_type((OpenRouterError, TimeoutError)),
+        reraise=True
+    )
+    def _call_openrouter(self, prompt: str) -> str:
+        """
+        Call OpenRouter API with retry logic.
         
+        Raises:
+            OpenRouterError: If API call fails after retries
+            TimeoutError: If request times out
+        """
         try:
-            provider = settings.active_llm_provider
+            response = self.client.chat.completions.create(
+                model=self.model,
+                messages=[
+                    {
+                        "role": "system",
+                        "content": "You are a historical linguist and etymologist specializing in semantic evolution. Respond ONLY with valid JSON."
+                    },
+                    {
+                        "role": "user",
+                        "content": prompt
+                    }
+                ],
+                temperature=settings.llm_temperature,
+                max_tokens=settings.llm_max_tokens,
+                timeout=settings.llm_timeout,
+                extra_headers=self.extra_headers
+            )
             
-            if provider in ["openai", "deepseek"]:
-                response = self.llm_client.chat.completions.create(
-                    model=self.llm_model,
-                    messages=[
-                        {"role": "system", "content": "You are a historical linguist and etymologist."},
-                        {"role": "user", "content": prompt}
-                    ],
-                    temperature=0.7,
-                    max_tokens=2000
-                )
-                content = response.choices[0].message.content
+            content = response.choices[0].message.content
             
-            elif provider == "gemini":
-                response = self.llm_client.generate_content(prompt)
-                content = response.text
+            if not content:
+                raise OpenRouterError("Empty response from OpenRouter")
             
-            elif provider == "anthropic":
-                response = self.llm_client.messages.create(
-                    model=self.llm_model,
-                    max_tokens=2000,
-                    messages=[
-                        {"role": "user", "content": prompt}
-                    ]
-                )
-                content = response.content[0].text
-            
-            # Parse JSON response
-            # Remove markdown code blocks if present
-            content = content.strip()
-            if content.startswith("```"):
-                content = content.split("```")[1]
-                if content.startswith("json"):
-                    content = content[4:]
-                content = content.strip()
-            
-            result = json.loads(content)
-            logger.info(f"Successfully generated {len(result)} era contexts for '{word}' using {provider}")
-            return result
+            return content
+        
+        except TimeoutError as e:
+            logger.error(f"OpenRouter request timed out: {e}")
+            raise
         
         except Exception as e:
-            logger.error(f"Error generating LLM contexts for '{word}': {e}")
-            return {}
+            logger.error(f"OpenRouter API error: {e}")
+            raise OpenRouterError(f"API call failed: {str(e)}")
     
-    def load_csv_fallback(self, word: str, era: str) -> List[str]:
-        """Load examples from CSV files as fallback."""
-        csv_path = settings.data_path / f"{era}_{word}.csv"
+    def _parse_response(self, content: str) -> Dict[str, List[str]]:
+        """
+        Parse LLM response, handling markdown code blocks.
         
-        if not csv_path.exists():
-            logger.warning(f"CSV fallback file not found: {csv_path}")
-            return []
+        Returns:
+            Dict mapping era to list of examples
+        
+        Raises:
+            ValueError: If response is not valid JSON
+        """
+        # Remove markdown code blocks if present
+        content = content.strip()
+        
+        if content.startswith("```"):
+            lines = content.split("\n")
+            # Remove first and last lines (``` markers)
+            content = "\n".join(lines[1:-1])
+            # Remove 'json' language marker if present
+            if content.startswith("json"):
+                content = content[4:].strip()
         
         try:
-            examples = []
-            with csv_path.open("r", encoding="utf8") as f:
-                for line in f:
-                    line = line.strip()
-                    if line:
-                        examples.append(line)
+            data = json.loads(content)
             
-            logger.info(f"Loaded {len(examples)} examples from CSV: {csv_path}")
-            return examples
+            # Validate structure
+            if not isinstance(data, dict):
+                raise ValueError("Response is not a JSON object")
+            
+            # Ensure all values are lists of strings
+            for era, examples in data.items():
+                if not isinstance(examples, list):
+                    raise ValueError(f"Era '{era}' does not contain a list")
+                if not all(isinstance(ex, str) for ex in examples):
+                    raise ValueError(f"Era '{era}' contains non-string examples")
+            
+            return data
         
-        except Exception as e:
-            logger.error(f"Error reading CSV {csv_path}: {e}")
-            return []
+        except json.JSONDecodeError as e:
+            logger.error(f"Failed to parse LLM response as JSON: {e}")
+            logger.debug(f"Raw content: {content[:500]}")
+            raise ValueError(f"Invalid JSON response: {str(e)}")
     
-    async def get_word_evolution(
+    @lru_cache(maxsize=100)
+    def _cached_generation(self, word: str, eras_tuple: tuple, num_examples: int) -> str:
+        """Cached API call (eras as tuple for hashability)."""
+        eras = list(eras_tuple)
+        prompt = self._build_prompt(word, eras, num_examples)
+        return self._call_openrouter(prompt)
+    
+    def generate_word_evolution(
         self,
         word: str,
         eras: List[str],
         num_examples: int = 5
     ) -> Dict[str, List[str]]:
         """
-        Get word evolution data across eras.
+        Generate word evolution data across eras.
         
-        Priority:
-        1. Try LLM generation if enabled
-        2. Try Wiktionary API if enabled
-        3. Fallback to CSV files if enabled
+        Args:
+            word: The word to analyze
+            eras: List of time periods (e.g., ["1900s", "2020s"])
+            num_examples: Number of examples per era (1-20)
         
         Returns:
             Dictionary mapping era to list of contextual examples
+        
+        Raises:
+            ValueError: If input validation fails or response is invalid
+            OpenRouterError: If API call fails after retries
         """
-        result = {}
+        # Input validation
+        if not word or not word.strip():
+            raise ValueError("Word cannot be empty")
         
-        # Try LLM first
-        if settings.use_llm_etymology:
-            llm_result = self.generate_era_contexts_with_llm(word, eras, num_examples)
-            if llm_result:
-                return llm_result
+        word = word.strip().lower()
         
-        # Try external APIs
-        if settings.use_external_apis:
-            wiktionary_data = await self.fetch_wiktionary_data(word)
-            if wiktionary_data:
-                # Parse Wiktionary data (you'd need to implement parsing logic)
-                # For now, we'll skip to CSV fallback
-                pass
+        if not eras:
+            raise ValueError("Must provide at least one era")
         
-        # Fallback to CSV
-        if settings.fallback_to_csv:
-            for era in eras:
-                examples = self.load_csv_fallback(word, era)
-                if examples:
-                    result[era] = examples[:num_examples]
+        if num_examples < 1 or num_examples > settings.MAX_EXAMPLES_PER_ERA:
+            raise ValueError(
+                f"num_examples must be between 1 and {settings.MAX_EXAMPLES_PER_ERA}"
+            )
         
-        return result
+        # Validate era format (basic check)
+        for era in eras:
+            if not era.strip():
+                raise ValueError(f"Invalid era: '{era}'")
+        
+        logger.info(
+            f"Generating evolution for '{word}' across {len(eras)} eras "
+            f"({num_examples} examples each)"
+        )
+        
+        try:
+            # Use cache if enabled
+            if settings.cache_llm_responses:
+                content = self._cached_generation(
+                    word,
+                    tuple(eras),  # Convert to tuple for caching
+                    num_examples
+                )
+            else:
+                prompt = self._build_prompt(word, eras, num_examples)
+                content = self._call_openrouter(prompt)
+            
+            # Parse response
+            result = self._parse_response(content)
+            
+            # Validate we got data for all requested eras
+            missing_eras = set(eras) - set(result.keys())
+            if missing_eras:
+                logger.warning(f"Missing data for eras: {missing_eras}")
+            
+            logger.info(
+                f"Successfully generated {sum(len(v) for v in result.values())} "
+                f"examples for '{word}'"
+            )
+            
+            return result
+        
+        except (OpenRouterError, TimeoutError, ValueError) as e:
+            logger.error(f"Failed to generate evolution for '{word}': {e}")
+            raise
 
 
 # Global service instance
