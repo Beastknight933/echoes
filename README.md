@@ -37,6 +37,59 @@ echoes-backend/
 
    pip install -r requirements.txt --extra-index-url https://download.pytorch.org/whl/cpu
 
+## try this only if the requirement file is giving error
+1. Upgrade pip / setuptools / wheel / build (this is the most important step):
+
+
+
+# inside .venv
+python -m pip install --upgrade pip setuptools wheel build
+
+2. (Optional but helpful) Clear pip cache so pip re-downloads wheels:
+
+
+
+python -m pip cache purge
+
+3. Install NumPy first using binary-only preference so pip will not attempt to build from source:
+
+
+
+# prefer binary, but allow fallback; if it still tries to build, switch to only-binary
+pip install numpy==1.25.2 --prefer-binary
+
+If the above still tries to build (error persists), force only-binary (this will fail if no wheel exists for your Python):
+
+pip install numpy==1.25.2 --only-binary=:all:
+
+If --only-binary fails (no wheel for your Python), try a different NumPy wheel that is more likely to exist on PyPI for modern Pythons:
+
+pip install numpy==1.26.4 --prefer-binary
+
+4. Install PyTorch (CPU wheel) using the PyTorch index:
+
+
+
+# Install a CPU wheel that exists on the PyTorch index. Pick the one that was shown as available earlier:
+pip install --trusted-host download.pytorch.org --index-url https://download.pytorch.org/whl/cpu torch==2.3.1+cpu
+
+If you want a different available torch (the index you showed had many +cpu versions), pick one from that list and replace 2.3.1+cpu.
+
+5. Install everything else from the requirements file (final requirements.txt given below):
+
+
+
+pip install -r requirements.txt --extra-index-url https://download.pytorch.org/whl/cpu
+
+6. Quick verification:
+
+
+
+python -c "import numpy, torch, sklearn, fastapi, sentence_transformers; print('numpy', numpy.__version__, 'torch', getattr(torch,'__version__','n/a'), 'sklearn', __import__('sklearn').__version__)"
+
+
+##
+
 
 
 2. Generate embeddings for demo concept freedom:
